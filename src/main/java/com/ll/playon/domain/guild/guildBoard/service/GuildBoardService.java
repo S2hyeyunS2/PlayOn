@@ -32,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URL;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -53,9 +54,18 @@ public class GuildBoardService {
 
         Page<GuildBoard> boards = guildBoardRepository.searchWithFilter(guild, tag, keyword, pageable);
 
+        List<Long> boardIds = boards.getContent().stream()
+                .map(GuildBoard::getId)
+                .toList();
+
+        Map<Long, Long> commentCountMap = boardIds.isEmpty()
+                ? Map.of()
+                : guildBoardCommentRepository.countByBoardIds(boardIds);
+
+
         return boards.map(board -> {
-            int commentCount = guildBoardCommentRepository.countByBoard(board);
-            return GuildBoardSummaryResponse.from(board, commentCount, actor);
+            Long commentCount = commentCountMap.getOrDefault(board.getId(), 0L);
+            return GuildBoardSummaryResponse.from(board, commentCount.intValue(), actor);
         });
     }
 
