@@ -219,4 +219,41 @@ public interface PartyRepository extends JpaRepository<Party, Long> {
             WHERE pr = :partyRoom
             """)
     Optional<Party> findByPartyRoom(@Param("partyRoom") PartyRoom partyRoom);
+
+    // 게임별 파티 ID를 페이징으로 조회 (페이징 전용)
+    @Query("""
+        SELECT p.id
+        FROM Party p
+        WHERE p.game = :game
+        """)
+    Page<Long> findPartyIdsByGame(@Param("game") SteamGame game, Pageable pageable);
+
+    // ID 리스트로 파티 + 연관 데이터 Fetch Join 조회 (N+1 방지용)
+    @Query("""
+        SELECT DISTINCT p
+        FROM Party p
+        LEFT JOIN FETCH p.partyMembers pm
+        LEFT JOIN FETCH pm.member
+        LEFT JOIN FETCH p.partyTags
+        WHERE p.id IN :partyIds
+        ORDER BY p.createdAt DESC
+        """)
+    List<Party> findPartiesWithDetailsByIds(@Param("partyIds") List<Long> partyIds);
+
+    // 완료된 공개 파티를 연관 데이터까지 Fetch Join으로 조회 (N+1 방지용)
+    @Query("""
+        SELECT DISTINCT p
+        FROM Party p
+        LEFT JOIN FETCH p.partyMembers pm
+        LEFT JOIN FETCH pm.member
+        LEFT JOIN FETCH p.partyTags
+        WHERE p.publicFlag = true
+        AND p.partyStatus = :partyStatus
+        AND pm.partyLog IS NOT NULL
+        ORDER BY p.endedAt DESC
+        """)
+    List<Party> findRecentCompletedPartiesWithLogsAndDetails(
+            @Param("partyStatus") PartyStatus partyStatus,
+            Pageable pageable
+    );
 }
