@@ -73,4 +73,14 @@ public interface GameRepository extends JpaRepository<SteamGame, Long>, GameRepo
             WHERE g.id IN :ids
             """)
     List<SteamGame> findSteamGameByIds(@Param("ids") List<Long> ids);
+
+    @Query("""
+            SELECT DISTINCT g
+            FROM SteamGame g
+            LEFT JOIN FETCH g.genres
+            LEFT JOIN FETCH g.screenshots
+            LEFT JOIN FETCH g.movies
+            WHERE g.appid = :appid
+            """)
+    Optional<SteamGame> findSteamGameByAppidWithDetails(@Param("appid") Long appid);
 }
