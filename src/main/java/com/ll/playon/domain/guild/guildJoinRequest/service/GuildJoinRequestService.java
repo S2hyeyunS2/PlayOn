@@ -56,7 +56,7 @@ public class GuildJoinRequestService {
     }
 
     private void processJoinRequest(Long guildId, Long requestId, Member approver, ApprovalState targetState) {
-        GuildJoinRequest joinRequest = guildJoinRequestRepository.findById(requestId)
+        GuildJoinRequest joinRequest = guildJoinRequestRepository.findByIdWithLock(requestId)
                 .orElseThrow(ErrorCode.GUILD_JOIN_REQUEST_NOT_FOUND::throwServiceException);
 
         if (!joinRequest.getGuild().getId().equals(guildId)) {
@@ -79,13 +79,16 @@ public class GuildJoinRequestService {
         joinRequest.setApprovedBy(approver);
 
         if (targetState == ApprovalState.APPROVED) {
-            int currentMembers = (int) guildMemberRepository.countByGuildId(joinRequest.getGuild().getId());
-            if (currentMembers >= joinRequest.getGuild().getMaxMembers()) {
+            Guild guild = guildRepository.findByIdWithLock(joinRequest.getGuild().getId())
+                    .orElseThrow(ErrorCode.GUILD_NOT_FOUND::throwServiceException);
+
+            int currentMembers = (int) guildMemberRepository.countByGuildId(guild.getId());
+            if (currentMembers >= guild.getMaxMembers()) {
                 throw ErrorCode.GUILD_MEMBER_LIMIT_EXCEEDED.throwServiceException();
             }
 
             GuildMember newMember = GuildMember.builder()
-                    .guild(joinRequest.getGuild())
+                    .guild(guild)
                     .member(joinRequest.getMember())
                     .guildRole(GuildRole.MEMBER)
                     .build();
