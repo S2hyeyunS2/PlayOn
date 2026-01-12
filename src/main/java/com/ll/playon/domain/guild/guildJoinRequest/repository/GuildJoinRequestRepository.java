@@ -21,3 +21,4 @@ public interface GuildJoinRequestRepository extends JpaRepository<GuildJoinReque
     @Query("SELECT gjr FROM GuildJoinRequest gjr WHERE gjr.id = :requestId")
     Optional<GuildJoinRequest> findByIdWithLock(@Param("requestId") Long requestId);
 }
+
