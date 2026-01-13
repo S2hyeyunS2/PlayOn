@@ -125,13 +125,20 @@ public class GameService {
     public GameDetailWithPartyResponse getGameDetailWithParties(Long appid) {
         Pageable partyPageable = PageRequest.of(0, 3);
 
-        SteamGame game = gameRepository.findSteamGameByAppid(appid)
+        // Fetch Join으로 게임 상세 정보와 연관된 genres, screenshots, movies를 한 번에 조회
+        SteamGame game = gameRepository.findSteamGameByAppidWithDetails(appid)
                 .orElseThrow(ErrorCode.GAME_NOT_FOUND::throwServiceException);
 
-        Page<Party> partyPage = partyRepository.findByGame(game, partyPageable);
+        // 페이징을 위해 먼저 Party ID만 조회
+        Page<Long> partyIdPage = partyRepository.findPartyIdsByGame(game, partyPageable);
+        
+        // Fetch Join으로 파티와 연관된 partyMembers, partyTags, Member를 한 번에 조회
+        List<Party> parties = partyIdPage.isEmpty() 
+                ? List.of() 
+                : partyRepository.findPartiesWithDetailsByIds(partyIdPage.getContent());
 
-        // 완료된 파티 조회
-        List<Party> completedParties = partyRepository.findRecentCompletedPartiesWithLogs(
+        // 완료된 파티 조회 (Fetch Join으로 연관 데이터 함께 조회)
+        List<Party> completedParties = partyRepository.findRecentCompletedPartiesWithLogsAndDetails(
                         PartyStatus.COMPLETED, Pageable.unpaged()
                 ).stream()
                 .filter(p -> p.getGame().getAppid().equals(appid))
@@ -178,7 +185,7 @@ public class GameService {
 
         return GameDetailWithPartyResponse.from(
                 game,
-                partyPage.getContent(),
+                parties,
                 completedParties,
                 mvpMap,
                 playTimeMap,
